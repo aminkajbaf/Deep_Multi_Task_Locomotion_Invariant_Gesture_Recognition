@@ -1,7 +1,7 @@
 # Deep Multi-Task Locomotion-Invariant Gesture Recognition with FMCW Radar
 # Paper: https://github.com/aminkajbaf/Deep_Multi_Task_Locomotion_Invariant_Gesture_Recognition
 
-data:
+data: 
   # LAGID-style folders of .npy RAP tensors (150 x H x W)
   walking_dir: /path/to/LAGID/gesture_walking
   still_dir: /path/to/LAGID/gesture_still
