@@ -1,6 +1,6 @@
-# Locomotion-Aware
+# Deep Multi-Task Locomotion-Invariant Gesture Recognition
 
-Source code for **"Locomotion–Aware Deep Gesture Recognition"**
+Source code for **"Deep Multi-Task Locomotion-Invariant Gesture Recognition with FMCW Radar"**
 
 ## 📄 Publication Status
 
