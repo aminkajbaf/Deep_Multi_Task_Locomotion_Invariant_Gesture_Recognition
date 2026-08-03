@@ -1,0 +1,47 @@
+# Locomotion-Aware Multi-Task Gesture Recognition (LMADGR)
+# Paper: https://github.com/aminkajbaf/Locomotion-Aware
+
+data:
+  # LAGID-style folders of .npy RAP tensors (150 x H x W)
+  walking_dir: /path/to/LAGID/gesture_walking
+  still_dir: /path/to/LAGID/gesture_still
+  motion_dir: /path/to/LAGID/motion
+  num_gesture_classes: 13
+  num_locomotion_classes: 3
+  batch_size: 8
+  val_split: 0.1
+  num_workers: 4
+  image_size: [32, 64]
+  zero_out_percentage: 0.0
+
+model:
+  # nvidia/MambaVision-L-21K (paper) or nvidia/MambaVision-T-1K (lighter)
+  model_name: nvidia/MambaVision-L-21K
+  classifier_hidden_size: 1568
+  locomotion_in_dim: 47040
+  contrastive_dim: 1024
+
+train:
+  seed: 42
+  learning_rate: 1.0e-4
+  temperature: 0.07
+  # Two-phase schedule (paper Sec. III)
+  phase1_epochs: 100
+  phase1_lambda_move: 1.0
+  phase1_lambda_sc: 1.0
+  phase2_epochs: 100
+  phase2_lambda_move: 0.1
+  phase2_lambda_sc: 0.1
+  device: cuda
+
+paths:
+  checkpoint_dir: checkpoints
+  best_ckpt: checkpoints/best_model.pth
+
+ais:
+  doppler_cutoff: 2
+  gamma: 1.0
+  range_fftsize: 128
+  doppler_fftsize: 256
+  angle_fftsize: 64
+  num_rx: 4
