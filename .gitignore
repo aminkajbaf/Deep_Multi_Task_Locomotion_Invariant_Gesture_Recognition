@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+
+# Training artifacts
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.onnx
+runs/
+wandb/
+lightning_logs/
+logs/
+*.log
+ablation_results*/
+res*/
+results/
+outputs/
+
+# Data (LAGID from IEEE DataPort)
+data/raw/
+data/processed/
+*.npy
+*.mat
+*.pkl
+*.pickle
+!configs/**
+
+# Large model caches
+~/.cache/huggingface/
+*.bin
+
+# Jupyter
+*.ipynb
+
+# Coverage / test cache
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
