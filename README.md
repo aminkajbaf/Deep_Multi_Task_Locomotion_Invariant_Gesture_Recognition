@@ -11,7 +11,7 @@ The source code will be publicly released after the paper is accepted and publis
 
 The radar dataset used in this study is publicly available on IEEE DataPort:
 
-**DSMU-RAD: Dynamic, Stationary, and Walking Users FMCW Radar Dataset**  
+**LAGID: Locomotion and Gesturing Invariant Dataset**  
 📘 DOI: [10.21227/3hvh-bf32](https://dx.doi.org/10.21227/3hvh-bf32)
 
 ## Method overview
