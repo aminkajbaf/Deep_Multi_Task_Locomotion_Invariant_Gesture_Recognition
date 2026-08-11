@@ -51,7 +51,7 @@ pip install -r requirements.txt
 
 The backbone is loaded from Hugging Face (`nvidia/MambaVision-L-21K` by default). First run will download model weights.
 
-## Data (DSMU-RAD)
+## Data (LAGID)
 
 Organize preprocessed RAP `.npy` files as:
 
