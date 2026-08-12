@@ -15,9 +15,9 @@ data:
   zero_out_percentage: 0.0
 
 model:
-  # nvidia/MambaVision-L-21K (paper) or nvidia/MambaVision-T-1K (lighter)
-  model_name: nvidia/MambaVision-L-21K
-  classifier_hidden_size: 1568
+  model_name: nvidia/MambaVision-T-1K
+  model_revision: 4f32dde5a8fb29107ab8dacd007da6b5daebaaff
+  classifier_hidden_size: 640
   locomotion_in_dim: 47040
   contrastive_dim: 1024
 

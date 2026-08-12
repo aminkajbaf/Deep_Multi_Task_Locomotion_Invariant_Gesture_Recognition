@@ -31,6 +31,7 @@ def build_model(variant: str, cfg: dict) -> nn.Module:
     common = dict(
         num_classes=cfg["data"]["num_gesture_classes"],
         model_name=cfg["model"]["model_name"],
+        model_revision=cfg["model"].get("model_revision"),
         classifier_hidden_size=cfg["model"]["classifier_hidden_size"],
     )
     if variant == "baseline":
@@ -84,10 +85,10 @@ def main():
     model = build_model(args.variant, cfg).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg["train"]["learning_rate"])
-    scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.8, patience=5)
+    scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.8, patience=5)
     save_path = Path(cfg["paths"]["checkpoint_dir"]) / f"best_{args.variant}.pth"
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    best = 0.0
+    best = float("inf")
     temp = cfg["train"]["temperature"]
     lam = args.lambda_aux
 
@@ -120,6 +121,7 @@ def main():
 
         model.eval()
         v_correct, v_n = 0, 0
+        v_loss_sum = 0.0
         with torch.no_grad():
             for inputs, labels, loco in val_loader:
                 inputs, labels = inputs.to(device), labels.to(device)
@@ -130,15 +132,24 @@ def main():
                 elif args.variant == "contrastive":
                     g, _ = model(inputs)
                 else:
-                    g, _, _ = model(inputs)
+                    g = model(inputs, gesture_only=True)
                 v_correct += (g.argmax(1) == labels).sum().item()
                 v_n += labels.size(0)
+                v_loss_sum += criterion(g, labels).item() * labels.size(0)
+
         val_acc = 100.0 * v_correct / max(v_n, 1)
-        scheduler.step(val_acc)
-        print(f"epoch {epoch+1}: train={100*correct/n:.2f}% val={val_acc:.2f}%")
-        if val_acc > best:
-            best = val_acc
-            torch.save({"model": model.state_dict(), "val_acc": best}, save_path)
+        val_gesture_loss = v_loss_sum / max(v_n, 1)
+        scheduler.step(val_gesture_loss)
+        print(
+            f"epoch {epoch+1}: train={100*correct/n:.2f}% val={val_acc:.2f}% "
+            f"val_gesture_loss={val_gesture_loss:.6f}"
+        )
+        if val_gesture_loss < best:
+            best = val_gesture_loss
+            torch.save(
+                {"model": model.state_dict(), "val_gesture_loss": best},
+                save_path,
+            )
             print(f"  saved {save_path}")
 
 

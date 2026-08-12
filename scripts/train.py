@@ -52,20 +52,17 @@ def build_loaders(cfg: dict):
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, criterion, temperature: float):
+def evaluate(model, loader, device, criterion):
     model.eval()
-    loss_sum, correct, n = 0.0, 0, 0
+    gesture_loss_sum, correct, n = 0.0, 0, 0
     for inputs, labels, loco in loader:
         inputs = inputs.to(device)
         labels = labels.to(device)
-        loco = loco.to(device)
-        g, m, z = model(inputs)
-        loss = criterion(g, labels) + criterion(m, loco)
-        loss = loss + supervised_contrastive_loss(z, labels, temperature)
-        loss_sum += loss.item() * labels.size(0)
+        g = model(inputs, gesture_only=True)
+        gesture_loss_sum += criterion(g, labels).item() * labels.size(0)
         correct += (g.argmax(1) == labels).sum().item()
         n += labels.size(0)
-    return loss_sum / max(n, 1), 100.0 * correct / max(n, 1)
+    return gesture_loss_sum / max(n, 1), 100.0 * correct / max(n, 1)
 
 
 def run_phase(
@@ -84,8 +81,8 @@ def run_phase(
 ):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.8, patience=5)
-    best_acc = 0.0
+    scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.8, patience=5)
+    best_gesture_loss = float("inf")
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(epochs):
@@ -110,25 +107,25 @@ def run_phase(
             n += labels.size(0)
             pbar.set_postfix(loss=f"{loss_sum/n:.4f}", acc=f"{100*correct/n:.2f}%")
 
-        val_loss, val_acc = evaluate(model, val_loader, device, criterion, temperature)
-        scheduler.step(val_acc)
+        val_gesture_loss, val_acc = evaluate(model, val_loader, device, criterion)
+        scheduler.step(val_gesture_loss)
         print(
             f"{phase_name} epoch {epoch+1}: "
-            f"train_acc={100*correct/n:.2f}% val_acc={val_acc:.2f}% val_loss={val_loss:.4f}"
+            f"train_acc={100*correct/n:.2f}% val_acc={val_acc:.2f}% val_gesture_loss={val_gesture_loss:.6f}"
         )
-        if val_acc > best_acc:
-            best_acc = val_acc
+        if val_gesture_loss < best_gesture_loss:
+            best_gesture_loss = val_gesture_loss
             torch.save(
                 {
                     "model": model.state_dict(),
-                    "val_acc": best_acc,
+                    "val_gesture_loss": best_gesture_loss,
                     "lambda_move": lambda_move,
                     "lambda_sc": lambda_sc,
                 },
                 save_path,
             )
-            print(f"  saved {save_path} (best {best_acc:.2f}%)")
-    return best_acc
+            print(f"  saved {save_path} (best val gesture loss {best_gesture_loss:.6f})")
+    return best_gesture_loss
 
 
 def main():
@@ -147,6 +144,7 @@ def main():
         num_classes=cfg["data"]["num_gesture_classes"],
         num_classes_move=cfg["data"]["num_locomotion_classes"],
         model_name=cfg["model"]["model_name"],
+        model_revision=cfg["model"].get("model_revision"),
         classifier_hidden_size=cfg["model"]["classifier_hidden_size"],
         locomotion_in_dim=cfg["model"]["locomotion_in_dim"],
         contrastive_dim=cfg["model"]["contrastive_dim"],

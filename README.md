@@ -49,14 +49,14 @@ conda activate lmadgr
 pip install -r requirements.txt
 ```
 
-The backbone is loaded from Hugging Face (`nvidia/MambaVision-L-21K` by default). First run will download model weights.
+The backbone is loaded from Hugging Face (see `configs/default.yaml` for `model_name`). First run will download model weights.
 
-## Data (DSMU-RAD)
+## Data (LAGID)
 
 Organize preprocessed RAP `.npy` files as:
 
 ```text
-DSMU-RAD/
+LAGID/
 ├── gesture_walking/   # locomotion id 0
 ├── gesture_still/     # locomotion id 1
 └── motion/            # locomotion id 2 (non-gesture body motion)

@@ -9,7 +9,7 @@ Heads:
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -28,6 +28,19 @@ def _adapt_patch_embed(model: nn.Module, in_channels: int = 150) -> None:
     )
 
 
+def _load_mambavision(model_name: str, model_revision: Optional[str]) -> nn.Module:
+    if model_revision:
+        try:
+            return AutoModel.from_pretrained(
+                model_name,
+                revision=model_revision,
+                trust_remote_code=True,
+            )
+        except Exception:
+            pass
+    return AutoModel.from_pretrained(model_name, trust_remote_code=True)
+
+
 class ModifiedMambaVision(nn.Module):
     """Gesture-only baseline (ablation)."""
 
@@ -35,11 +48,12 @@ class ModifiedMambaVision(nn.Module):
         self,
         num_classes: int = 13,
         model_name: str = "nvidia/MambaVision-L-21K",
+        model_revision: Optional[str] = None,
         classifier_hidden_size: int = 1568,
         in_channels: int = 150,
     ):
         super().__init__()
-        self.mamba_vision = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        self.mamba_vision = _load_mambavision(model_name, model_revision)
         _adapt_patch_embed(self.mamba_vision, in_channels)
         self.classifier = nn.Linear(classifier_hidden_size, num_classes)
 
@@ -56,12 +70,13 @@ class ModifiedMambaVisionMovementOnly(nn.Module):
         num_classes: int = 13,
         num_classes_move: int = 3,
         model_name: str = "nvidia/MambaVision-L-21K",
+        model_revision: Optional[str] = None,
         classifier_hidden_size: int = 1568,
         locomotion_in_dim: int = 47040,
         in_channels: int = 150,
     ):
         super().__init__()
-        self.mamba_vision = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        self.mamba_vision = _load_mambavision(model_name, model_revision)
         _adapt_patch_embed(self.mamba_vision, in_channels)
         self.classifier = nn.Linear(classifier_hidden_size, num_classes)
         self.classifier_move = nn.Sequential(
@@ -85,12 +100,13 @@ class ModifiedMambaVisionContrastiveOnly(nn.Module):
         self,
         num_classes: int = 13,
         model_name: str = "nvidia/MambaVision-L-21K",
+        model_revision: Optional[str] = None,
         classifier_hidden_size: int = 1568,
         contrastive_dim: int = 1024,
         in_channels: int = 150,
     ):
         super().__init__()
-        self.mamba_vision = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        self.mamba_vision = _load_mambavision(model_name, model_revision)
         _adapt_patch_embed(self.mamba_vision, in_channels)
         self.classifier = nn.Linear(classifier_hidden_size, num_classes)
         self.contrastive_projection = nn.Sequential(
@@ -112,13 +128,14 @@ class ModifiedMambaVisionTwoClassifier(nn.Module):
         num_classes: int = 13,
         num_classes_move: int = 3,
         model_name: str = "nvidia/MambaVision-L-21K",
+        model_revision: Optional[str] = None,
         classifier_hidden_size: int = 1568,
         locomotion_in_dim: int = 47040,
         contrastive_dim: int = 1024,
         in_channels: int = 150,
     ):
         super().__init__()
-        self.mamba_vision = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        self.mamba_vision = _load_mambavision(model_name, model_revision)
         _adapt_patch_embed(self.mamba_vision, in_channels)
         self.classifier = nn.Linear(classifier_hidden_size, num_classes)
         self.classifier_move = nn.Sequential(
@@ -132,9 +149,15 @@ class ModifiedMambaVisionTwoClassifier(nn.Module):
             nn.Linear(2048, contrastive_dim),
         )
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        x: torch.Tensor,
+        gesture_only: bool = False,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
         h, features = self.mamba_vision(x)
         gesture_logits = self.classifier(h)
+        if gesture_only:
+            return gesture_logits
         flat = torch.cat([f.flatten(1) for f in features], dim=1)
         move_logits = self.classifier_move(flat)
         contrastive = self.contrastive_projection(h)

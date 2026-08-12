@@ -21,6 +21,11 @@ def main():
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--out-dir", type=Path, default=Path("results"))
+    parser.add_argument(
+        "--use-aux-heads",
+        action="store_true",
+        help="Run movement and contrastive heads during inference.",
+    )
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
@@ -43,6 +48,7 @@ def main():
         num_classes=data["num_gesture_classes"],
         num_classes_move=data["num_locomotion_classes"],
         model_name=cfg["model"]["model_name"],
+        model_revision=cfg["model"].get("model_revision"),
         classifier_hidden_size=cfg["model"]["classifier_hidden_size"],
         locomotion_in_dim=cfg["model"]["locomotion_in_dim"],
         contrastive_dim=cfg["model"]["contrastive_dim"],
@@ -51,23 +57,30 @@ def main():
     model.load_state_dict(state["model"] if isinstance(state, dict) and "model" in state else state)
     model.eval()
 
-    g_preds, g_labels, m_preds, m_labels = [], [], [], []
+    g_preds, g_labels = [], []
+    m_preds, m_labels = [], []
     with torch.no_grad():
         for inputs, labels, loco in tqdm(val_loader, desc="Eval"):
-            g, m, _ = model(inputs.to(device))
+            inputs = inputs.to(device)
+            if args.use_aux_heads:
+                g, m, _ = model(inputs)
+            else:
+                g = model(inputs, gesture_only=True)
             g_preds.extend(g.argmax(1).cpu().tolist())
             g_labels.extend(labels.tolist())
-            m_preds.extend(m.argmax(1).cpu().tolist())
-            m_labels.extend(loco.tolist())
+            if args.use_aux_heads:
+                m_preds.extend(m.argmax(1).cpu().tolist())
+                m_labels.extend(loco.tolist())
 
     g_names = list(GESTURE_CLASSES.keys())
     m_names = [LOCOMOTION_CLASSES[i] for i in range(len(LOCOMOTION_CLASSES))]
     acc = 100.0 * np.mean(np.array(g_preds) == np.array(g_labels))
     print(f"Gesture accuracy: {acc:.2f}%")
     print(classification_report(g_labels, g_preds, target_names=g_names, digits=4))
-    print("Locomotion:")
-    print(classification_report(m_labels, m_preds, target_names=m_names, digits=4))
     print(f"Gesture macro-F1: {f1_score(g_labels, g_preds, average='macro'):.4f}")
+    if args.use_aux_heads:
+        print("Locomotion:")
+        print(classification_report(m_labels, m_preds, target_names=m_names, digits=4))
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     np.save(args.out_dir / "cm_gesture.npy", confusion_matrix(g_labels, g_preds))
